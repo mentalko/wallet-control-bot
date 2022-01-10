@@ -126,9 +126,11 @@ async def set_budget(message: types.Message):
     """
         Setting budget limit
     """
-    budget = await user_cnt.set_budget(message.from_user.id, message.text)
-    await message.answer(f"Установлен бюджет в размере {budget} грн. ✔️")
-
+    try:
+        budget = await user_cnt.set_budget(message.from_user.id, message.text)
+        await message.answer(f"Установлен бюджет в размере {budget} грн. ✔️")
+    except NotCorrectMessage as e:
+        await message.answer(str(e))
 
 @dp.message_handler()
 async def add_expense(message: types.Message):

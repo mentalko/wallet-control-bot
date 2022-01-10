@@ -10,6 +10,8 @@ from app.utils.constants import DEFAULT_BUDGET
 
 import app.db as db
 
+from app.exceptions.NotCorrectMessage import NotCorrectMessage
+
 
 async def add_new_user(user: types.User):
     new_user = User(id=user.id,
@@ -48,7 +50,7 @@ def _parse_message(raw_message: str) -> float:
     regexp_result = re.match(r"(/.*) [+]?([0-9]*\.[0-9]+|[0-9]+)", raw_message)
     if not regexp_result or not regexp_result.group(0) \
             or not regexp_result.group(1) or not regexp_result.group(2):
-        raise exceptions.NotCorrectMessage(
+        raise NotCorrectMessage(
             "❌Не могу понять сообщение. Напишите сообщение в формате, "
             "например:\n/set_budget 1500")
 
