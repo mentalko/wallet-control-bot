@@ -8,9 +8,12 @@ from app.models.expense import Expense
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
-
-uri = "mongodb://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}" + \
+if DB_USER:
+    uri = "mongodb://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"+ \
       "?retryWrites=false"
+else:
+    uri = "mongodb://{DB_HOST}/{DB_NAME}" + \
+        "?retryWrites=false"
 uri = uri.format(DB_USER=DB_USER, DB_PASSWORD=DB_PASSWORD,
                  DB_HOST=DB_HOST, DB_NAME=DB_NAME)
 

@@ -15,6 +15,7 @@ import app.utils.messages as messages
 from app.utils.config import WEBHOOK_HOST, WEBHOOK_PATH, DEVELOP
 
 from app.db import check_db_exists
+from app.keyboards.inline import ik_menu
 
 
 WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
@@ -26,6 +27,10 @@ ADMIN_ID = os.getenv("TELEGRAM_ADMIN_ID", '')
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
+
+
+keyboard_markup = types.InlineKeyboardMarkup(row_width=1)
+mk = ik_menu.main_keyboard()
 
 
 async def on_startup(dp):
@@ -52,10 +57,23 @@ async def send_welcome(message: types.Message):
     """
         Sending welcome message to user
     """
+    if not await user_cnt.user_is_exists(message.from_user.id):
+        await user_cnt.add_new_user(message.from_user, currency=None)
+        await message.answer( messages.WELCOM_MSG, reply_markup=ik_menu.curency_keyboard())
+        
+        # await message.answer(messages.WELCOM_MSG, reply_markup=ik_menu.main_keyboard())
+    else:
+        await bot.send_message(message.from_user.id, messages.HELP_MSG, reply_markup=ik_menu.main_keyboard())
+        
 
-    await user_cnt.add_new_user(message.from_user)
-    await message.answer(messages.WELCOM_MSG)
-
+@dp.callback_query_handler(lambda c: c.data and c.data.startswith('_')) 
+async def get_curency(message: types.Message,): # callback_query: types.CallbackQuery):
+    """
+        Sending help message to user
+    """
+    code = message.data.replace('_', '')
+    await user_cnt.add_new_user(message.from_user, currency=code)
+    await send_welcome(message)
 
 @dp.message_handler(commands=['help'])
 async def send_help(message: types.Message):
@@ -74,61 +92,71 @@ async def del_expense(message: types.Message):
     answer_message = "Удалил ✔️"
     await message.answer(answer_message)
 
-
+@dp.callback_query_handler(text='/categories') 
 @dp.message_handler(commands=['categories'])
 async def categories_list(message: types.Message):
     """
         Sending category list
     """
-    await message.answer(await category_cnt.get_categories_list())
+    answer_message = await category_cnt.get_categories_list()
+    # await message.answer(await category_cnt.get_categories_list())
+    await bot.send_message(message.from_user.id, answer_message, reply_markup=ik_menu.main_keyboard())
 
-
+@dp.callback_query_handler(text='/today') 
 @dp.message_handler(commands=['today'])
 async def today_statistics(message: types.Message):
     """
         Sending statistics today
     """
     answer_message = await expense_cnt.get_today_statistics(message.from_user.id)
-    await message.answer(answer_message)
+    await bot.send_message(message.from_user.id, answer_message, reply_markup=ik_menu.main_keyboard())
 
 
+@dp.callback_query_handler(text='/month') 
 @dp.message_handler(commands=['month'])
 async def month_statistics(message: types.Message):
     """
         Sending statistics for the current month
     """
     answer_message = await expense_cnt.get_month_statistics(message.from_user.id)
-    await message.answer(answer_message)
+    # await message.answer(answer_message)
+    await bot.send_message(message.from_user.id, answer_message, reply_markup=ik_menu.main_keyboard())
 
 
+@dp.callback_query_handler(text='/expenses') 
 @dp.message_handler(commands=['expenses'])
 async def list_expenses(message: types.Message):
     """Отправляет последние несколько записей о расходах"""
     last_expenses = await expense_cnt.last(message.from_user.id)
+    currency_name = await user_cnt.get_curency_name(message.from_user.id)
 
     if not last_expenses:
         await message.answer("Расходы ещё не заведены❗")
         return
 
     last_expenses_rows = [
-        f"{expense['amount']} грн. на {expense['category_name']} — нажми "
+        f"{expense['amount']} {currency_name} на {expense['category_name']} — нажми "
         f"/del{expense['id']} для удаления"
         for expense in last_expenses]
 
     answer_message = "Последние сохранённые траты:\n\n🔸 " + "\n\n🔸 "\
             .join(last_expenses_rows)
 
-    await message.answer(answer_message)
+    # await message.answer(answer_message)
+    await bot.send_message(message.from_user.id, answer_message, reply_markup=ik_menu.main_keyboard())
 
 
-@dp.message_handler(commands=['set_budget'])
+
+@dp.message_handler(lambda message: message.text.startswith('/set_budget'))
 async def set_budget(message: types.Message):
     """
         Setting budget limit
     """
+    currency_name = await user_cnt.get_curency_name(message.from_user.id)
+
     try:
         budget = await user_cnt.set_budget(message.from_user.id, message.text)
-        await message.answer(f"Установлен бюджет в размере {budget} грн. ✔️")
+        await message.answer(f"Установлен бюджет в размере {budget} {currency_name} ✔️")
     except NotCorrectMessage as e:
         await message.answer(str(e))
 
@@ -138,6 +166,9 @@ async def add_expense(message: types.Message):
         Adding new expense
     """
     user_id = message.from_user.id
+    
+    currency_name = await user_cnt.get_curency_name(user_id)
+    
 
     try:
         expense = await expense_cnt.add_expense(user_id, message.text)
@@ -146,7 +177,7 @@ async def add_expense(message: types.Message):
         return
 
     answer_message = (
-        f"Добавлены траты {expense['amount']} грн. на {expense['category_name']} ✔️\n\n"
+        f"Добавлены траты {expense['amount']} {currency_name} на {expense['category_name']} ✔️\n\n"
         f"{await expense_cnt.get_today_statistics(user_id)}")
 
     await message.answer(answer_message)

@@ -10,3 +10,4 @@ class User(Dict):
     is_bot: bool
     language_code: str
     budget: float
+    curency: str

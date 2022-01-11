@@ -5,6 +5,7 @@ from typing import List, NamedTuple, Optional
 import pytz
 
 import app.db as db
+import app.controllers.user_controllers as user_cnt
 
 from app.exceptions.NotCorrectMessage import NotCorrectMessage
 
@@ -92,11 +93,15 @@ async def get_today_statistics(user_id: int) -> str:
     document = {'user_id': user_id, 'is_base_expense': True, 'created': {'$lt': now, '$gte': start}}
 
     result = await db.compute_sum(DB_EXPENSES_COLLECTION_NAME, 'amount', document)
+    
+    currency_name = await user_cnt.get_curency_name(user_id)
+
 
     base_today_expenses = result if result else 0
     return (f"Расходы сегодня💸\n"
-            f"всего — {round(all_today_expenses, 2)} грн.\n"
-            f"базовые — {round(base_today_expenses, 2)} грн. из {await _get_budget_limit(user_id)} грн.\n\n"
+            f"всего — {round(all_today_expenses, 2)} {currency_name}\n"
+            f"базовые — {round(base_today_expenses, 2)} {currency_name}" 
+            f"из {await _get_budget_limit(user_id)} {currency_name}\n\n"
             f"За текущий месяц: /month")
 
 
@@ -120,12 +125,14 @@ async def get_month_statistics(user_id: int) -> str:
     result = await db.compute_sum(DB_EXPENSES_COLLECTION_NAME, 'amount', document)
 
     budget = await _get_budget_limit(user_id)
+    
+    currency_name = await user_cnt.get_curency_name(user_id)
 
     base_today_expenses = result if result else 0
     return (f"Расходы в текущем месяце💸\n"
-            f"всего — {round(all_today_expenses, 2)} грн.\n"
-            f"базовые — {round(base_today_expenses, 2)} грн. из "
-            f"{now.day * budget} грн.")
+            f"всего — {round(all_today_expenses, 2)} {currency_name}\n"
+            f"базовые — {round(base_today_expenses, 2)} {currency_name} из "
+            f"{now.day * budget} {currency_name}")
 
 
 async def last(user_id: int) -> List[Expense]:

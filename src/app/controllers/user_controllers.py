@@ -1,6 +1,6 @@
 import re
 
-from typing import Dict
+from typing import Dict, Optional
 from aiogram import types
 
 from app.models.user import User
@@ -13,12 +13,13 @@ import app.db as db
 from app.exceptions.NotCorrectMessage import NotCorrectMessage
 
 
-async def add_new_user(user: types.User):
+async def add_new_user(user: types.User, currency: Optional[str]):
     new_user = User(id=user.id,
                     username=user.username,
                     is_bot=user.is_bot,
                     language_code=user.language_code,
-                    budget=DEFAULT_BUDGET)
+                    budget=DEFAULT_BUDGET,
+                    currency=currency)
 
     is_register = await user_is_exists(new_user['id'])
 
@@ -33,6 +34,10 @@ async def user_is_exists(id: int) -> bool:
         return True
     else:
         return False
+    
+async def get_curency_name(id: int) -> bool:
+    curency_name = await db.do_find_one(DB_USER_COLLECTION_NAME, {'id': id})
+    return curency_name["currency"]
 
 
 async def set_budget(user_id: int, raw_message: str) -> float:
