@@ -15,7 +15,7 @@ import app.utils.messages as messages
 from app.utils.config import WEBHOOK_HOST, WEBHOOK_PATH, DEVELOP
 
 from app.db import check_db_exists
-from app.keyboards.inline import ik_menu
+from app.keyboards.default import rk_menus
 
 
 WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
@@ -27,10 +27,6 @@ ADMIN_ID = os.getenv("TELEGRAM_ADMIN_ID", '')
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
-
-
-keyboard_markup = types.InlineKeyboardMarkup(row_width=1)
-mk = ik_menu.main_keyboard()
 
 
 async def on_startup(dp):
@@ -59,19 +55,17 @@ async def send_welcome(message: types.Message):
     """
     if not await user_cnt.user_is_exists(message.from_user.id):
         await user_cnt.add_new_user(message.from_user, currency=None)
-        await message.answer( messages.WELCOM_MSG, reply_markup=ik_menu.curency_keyboard())
-        
-        # await message.answer(messages.WELCOM_MSG, reply_markup=ik_menu.main_keyboard())
+        await message.answer( messages.WELCOM_MSG, reply_markup=rk_menus.curency_keyboard())
     else:
-        await bot.send_message(message.from_user.id, messages.HELP_MSG, reply_markup=ik_menu.main_keyboard())
+        await bot.send_message(message.from_user.id, messages.HELP_MSG, reply_markup=rk_menus.main_keyboard())
         
 
-@dp.callback_query_handler(lambda c: c.data and c.data.startswith('_')) 
-async def get_curency(message: types.Message,): # callback_query: types.CallbackQuery):
+@dp.message_handler(lambda message: message.text in ["руб.", "грн.", "$"]) 
+async def get_curency(message: types.Message,):
     """
         Sending help message to user
     """
-    code = message.data.replace('_', '')
+    code = message.text
     await user_cnt.add_new_user(message.from_user, currency=code)
     await send_welcome(message)
 
@@ -91,8 +85,8 @@ async def del_expense(message: types.Message):
 
     answer_message = "Удалил ✔️"
     await message.answer(answer_message)
-
-@dp.callback_query_handler(text='/categories') 
+    
+@dp.message_handler(text='Категории расходов') 
 @dp.message_handler(commands=['categories'])
 async def categories_list(message: types.Message):
     """
@@ -100,30 +94,28 @@ async def categories_list(message: types.Message):
     """
     answer_message = await category_cnt.get_categories_list()
     # await message.answer(await category_cnt.get_categories_list())
-    await bot.send_message(message.from_user.id, answer_message, reply_markup=ik_menu.main_keyboard())
+    await message.answer(answer_message)
 
-@dp.callback_query_handler(text='/today') 
+@dp.message_handler(text='Сегодняшняя статистика') 
 @dp.message_handler(commands=['today'])
 async def today_statistics(message: types.Message):
     """
         Sending statistics today
     """
     answer_message = await expense_cnt.get_today_statistics(message.from_user.id)
-    await bot.send_message(message.from_user.id, answer_message, reply_markup=ik_menu.main_keyboard())
+    await message.answer(answer_message)
 
 
-@dp.callback_query_handler(text='/month') 
+@dp.message_handler(text='За текущий месяц') 
 @dp.message_handler(commands=['month'])
 async def month_statistics(message: types.Message):
     """
         Sending statistics for the current month
     """
     answer_message = await expense_cnt.get_month_statistics(message.from_user.id)
-    # await message.answer(answer_message)
-    await bot.send_message(message.from_user.id, answer_message, reply_markup=ik_menu.main_keyboard())
+    await message.answer(answer_message)
 
-
-@dp.callback_query_handler(text='/expenses') 
+@dp.message_handler(text='Последние расходы') 
 @dp.message_handler(commands=['expenses'])
 async def list_expenses(message: types.Message):
     """Отправляет последние несколько записей о расходах"""
@@ -142,8 +134,7 @@ async def list_expenses(message: types.Message):
     answer_message = "Последние сохранённые траты:\n\n🔸 " + "\n\n🔸 "\
             .join(last_expenses_rows)
 
-    # await message.answer(answer_message)
-    await bot.send_message(message.from_user.id, answer_message, reply_markup=ik_menu.main_keyboard())
+    await message.answer(answer_message)
 
 
 
